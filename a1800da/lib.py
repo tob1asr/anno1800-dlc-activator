@@ -1,4 +1,5 @@
 import io
+import logging
 import struct
 import sys
 import zlib
@@ -7,26 +8,23 @@ from enum import Enum
 from io import BytesIO
 from typing import List, Self
 
-
-def print(content):
-    """Hack to disable print output"""
-    pass
+log = logging.getLogger(__name__)
 
 
 class DLC(Enum):
-    THE_ANARCHIST = 2861514240  # 0xaa8f3e00
-    S1_SUNKEN_TREASURES = 3091269120  # 0xb8410600
-    S1_BOTANICA = 3108046336  # 0xb9410600
-    S1_THE_PASSAGE = 3124823552  # 0xba410600
-    S2_SEAT_OF_POWER = 3410036224  # 0xcb410600
-    S2_BRIGHT_HARVEST = 3594585600  # 0xd6410600
-    S2_LAND_OF_LIONS = 3611362816  # 0xd7410600
-    S3_DOCKLANDS = 3812689408  # 0xe3410600
-    S3_TOURIST_SEASON = 3829466624  # 0xe4410600
-    S3_HIGH_LIFE = 3846243840  # 0xe5410600
-    S4_SEEDS_OF_CHANGE = 2170617856  # 0x81610000
-    S4_EMPIRE_OF_THE_SKIES = 2187395072  # 0x82610000
-    S4_NEW_WORLD_RISING = 2204172288  # 0x83610000
+    THE_ANARCHIST = 0xAA8F3E00
+    S1_SUNKEN_TREASURES = 0xB8410600
+    S1_BOTANICA = 0xB9410600
+    S1_THE_PASSAGE = 0xBA410600
+    S2_SEAT_OF_POWER = 0xCB410600
+    S2_BRIGHT_HARVEST = 0xD6410600
+    S2_LAND_OF_LIONS = 0xD7410600
+    S3_DOCKLANDS = 0xE3410600
+    S3_TOURIST_SEASON = 0xE4410600
+    S3_HIGH_LIFE = 0xE5410600
+    S4_SEEDS_OF_CHANGE = 0x81610000
+    S4_EMPIRE_OF_THE_SKIES = 0x82610000
+    S4_NEW_WORLD_RISING = 0x83610000
 
 
 class Reader:
@@ -52,7 +50,9 @@ class Reader:
         buffer = BytesIO(self.initial_bytes)
         buffer.seek(pos)
         value = int.from_bytes(buffer.read(size), "little")
-        print(f"DEBUG: read() value {value} (0x{value:x}), {size} bytes from position (0x{pos:x})")
+        log.debug(
+            f"read() value {value} (0x{value:x}), {size} bytes from position (0x{pos:x})"
+        )
         return value
 
     def read_sequentially(self, size: int) -> int:
@@ -61,8 +61,9 @@ class Reader:
         Interpret bytes as little endian."""
         buffer = self.initial_bytes_buffer
         value = int.from_bytes(buffer.read(size), "little")
-        print(
-            f"DEBUG: read_sequentially() value {value} (0x{value:x}), {size} bytes from position (0x{buffer.tell():x})")
+        log.debug(
+            f"read_sequentially() value {value} (0x{value:x}), {size} bytes from position (0x{buffer.tell():x})"
+        )
         return value
 
     def read_sequentially_big(self, size: int) -> int:
@@ -71,8 +72,9 @@ class Reader:
         Interpret bytes as little endian."""
         buffer = self.initial_bytes_buffer
         value = int.from_bytes(buffer.read(size), "big")
-        print(
-            f"DEBUG: read_sequentially_big() value {value} (0x{value:x}), {size} bytes from position (0x{buffer.tell():x})")
+        log.debug(
+            f"read_sequentially_big() value {value} (0x{value:x}), {size} bytes from position (0x{buffer.tell():x})"
+        )
         return value
 
     def read_bytes(self, pos: int, size: int) -> bytes:
@@ -80,7 +82,7 @@ class Reader:
         buffer = BytesIO(self.initial_bytes)
         buffer.seek(pos)
         value = buffer.read(size)
-        print(f"DEBUG: read_bytes() {size} bytes from position (0x{pos:x})")
+        log.debug(f"read_bytes() {size} bytes from position (0x{pos:x})")
         return value
 
     def read_big(self, pos: int, size: int) -> int:
@@ -93,8 +95,8 @@ class Reader:
 
 
 class GameSetupNodeTypes(Enum):
-    OPENING = 1,
-    ATTRIBUTE = 2,
+    OPENING = 1
+    ATTRIBUTE = 2
     CLOSING = 3
 
 
@@ -131,22 +133,36 @@ class GameSetupReader(Reader):
     def _parse_enclosing_nodes_block(self, ptr):
         self.initial_bytes_buffer.seek(ptr)
         enclosing_tags_count = self.read_sequentially(4)
-        self.enclosing_tag_ids = [self.read_sequentially(2) for _ in range(0, enclosing_tags_count)]
-        self.enclosing_tag_names = [self._collect_single_chars_until_empty_byte() for _ in
-                                    range(0, enclosing_tags_count)]
-        self.enclosing_tags_combined = dict(zip(self.enclosing_tag_ids, self.enclosing_tag_names))
-        print(self.enclosing_tags_combined)
+        self.enclosing_tag_ids = [
+            self.read_sequentially(2) for _ in range(0, enclosing_tags_count)
+        ]
+        self.enclosing_tag_names = [
+            self._collect_single_chars_until_empty_byte()
+            for _ in range(0, enclosing_tags_count)
+        ]
+        self.enclosing_tags_combined = dict(
+            zip(self.enclosing_tag_ids, self.enclosing_tag_names)
+        )
+        log.debug(self.enclosing_tags_combined)
 
     def _parse_attribute_nodes_block(self, ptr):
         self.initial_bytes_buffer.seek(ptr)
         attribute_tags_count = self.read_sequentially(4)
-        self.attribute_tag_ids = [self.read_sequentially(2) for _ in range(0, attribute_tags_count)]
-        self.attribute_tag_names = [self._collect_single_chars_until_empty_byte() for _ in
-                                    range(0, attribute_tags_count)]
-        self.attribute_node_to_id = dict(zip(self.attribute_tag_names, self.attribute_tag_ids))
-        print(self.attribute_node_to_id)
-        self.attribute_tags_combined = dict(zip(self.attribute_tag_ids, self.attribute_tag_names))
-        print(self.attribute_tags_combined)
+        self.attribute_tag_ids = [
+            self.read_sequentially(2) for _ in range(0, attribute_tags_count)
+        ]
+        self.attribute_tag_names = [
+            self._collect_single_chars_until_empty_byte()
+            for _ in range(0, attribute_tags_count)
+        ]
+        self.attribute_node_to_id = dict(
+            zip(self.attribute_tag_names, self.attribute_tag_ids)
+        )
+        log.debug(self.attribute_node_to_id)
+        self.attribute_tags_combined = dict(
+            zip(self.attribute_tag_ids, self.attribute_tag_names)
+        )
+        log.debug(self.attribute_tags_combined)
 
     @staticmethod
     def get_node_type(number):
@@ -168,23 +184,34 @@ class GameSetupReader(Reader):
             node_type = self.get_node_type(node_id)
 
             if node_type == GameSetupNodeTypes.OPENING:
-                current_opening_node = GameSetupNode(node_id, self.enclosing_tags_combined[node_id],
-                                                     current_opening_node)
+                current_opening_node = GameSetupNode(
+                    node_id, self.enclosing_tags_combined[node_id], current_opening_node
+                )
                 xml_nested_level += 1
                 if self.enclosing_tags_combined[node_id] == "ActiveDLCs":
                     self.new_dlc_insertion_ptr = self.initial_bytes_buffer.tell()
-                    print(f"SAVED new_dlc_insertion_ptr = 0x{self.new_dlc_insertion_ptr:x}")
+                    log.debug(
+                        f"SAVED new_dlc_insertion_ptr = 0x{self.new_dlc_insertion_ptr:x}"
+                    )
 
             if node_type == GameSetupNodeTypes.ATTRIBUTE:
                 content_block_size = 8
                 node_content = self.read_sequentially_big(node_content_size)
-                if self.attribute_tags_combined[node_id] == "count" and current_opening_node.node_name == "ActiveDLCs":
-                    self.existing_count_node_ptr: int = self.initial_bytes_buffer.tell() - node_content_size
-                    print(
-                        f"FOUND COUNT the <ActiveDLC><count> tag. Write value to: 0x{self.existing_count_node_ptr:x}, {node_content_size} bytes, current content 0x{node_content:x}")
+                if (
+                    self.attribute_tags_combined[node_id] == "count"
+                    and current_opening_node.node_name == "ActiveDLCs"
+                ):
+                    self.existing_count_node_ptr: int = (
+                        self.initial_bytes_buffer.tell() - node_content_size
+                    )
+                    log.debug(
+                        f"FOUND COUNT the <ActiveDLC><count> tag. Write value to: 0x{self.existing_count_node_ptr:x}, {node_content_size} bytes, current content 0x{node_content:x}"
+                    )
                 if self.attribute_tags_combined[node_id] == "DLC":
                     self.existing_dlcs.append(DLC(node_content))
-                rest_of_bytes_to_read = content_block_size - node_content_size % content_block_size
+                rest_of_bytes_to_read = (
+                    content_block_size - node_content_size % content_block_size
+                )
                 if rest_of_bytes_to_read % content_block_size > 0:
                     self.read_sequentially(rest_of_bytes_to_read)
 
@@ -197,9 +224,9 @@ class GameSetupReader(Reader):
     def _collect_single_chars_until_empty_byte(self):
         character = ""
         collected_chars = ""
-        while character != '\0':
+        while character != "\0":
             character = self.initial_bytes_buffer.read(1).decode()
-            if character == '\0':
+            if character == "\0":
                 return collected_chars
             collected_chars = collected_chars + character
 
@@ -261,12 +288,12 @@ class Writer:
         return len(self.base_bytes)
 
     def insert(self, ptr: int, content: bytes):
-        print(f"Inserting at 0x{ptr:x}, {len(content)} bytes")
+        log.debug(f"Inserting at 0x{ptr:x}, {len(content)} bytes")
         self.base_bytes[ptr:ptr] = content
         self.added_bytes += len(content)
 
     def overwrite(self, ptr: int, content: bytes):
-        print(f"Overwriting at 0x{ptr:x}, {len(content)} bytes")
+        log.debug(f"Overwriting at 0x{ptr:x}, {len(content)} bytes")
         buffer = self._base_bytes_buffer
         buffer.seek(ptr)
         buffer.write(content)
@@ -291,28 +318,40 @@ class GameSetupWriter(Writer):
         count_bytes = struct.pack("<q", count)
         # count is shifted down by inserted dlcs by 16 bytes each dlc
         ptr = self.game_setup_reader.existing_count_node_ptr + added_dlc_count * 16
-        print(f"Update DLC count {len(self.game_setup_reader.existing_dlcs)}, to {count_bytes} at 0x{ptr:x}")
+        log.info(
+            f"Update DLC count {len(self.game_setup_reader.existing_dlcs)}, to {count_bytes} at 0x{ptr:x}"
+        )
         self.overwrite(ptr, count_bytes)
 
     def insert_dlc(self, dlc: DLC):
         dlc_content_size = 4
         dlc_element_id = self.game_setup_reader.attribute_node_to_id["DLC"]
         dlc_content = dlc.value
-        dlc_bytes_to_insert = (struct.pack("<i", dlc_content_size)
-                               + struct.pack("<i", dlc_element_id)
-                               + struct.pack(">I", dlc_content)
-                               + b"\x00\x00\x00\x00")
+        dlc_bytes_to_insert = (
+            struct.pack("<i", dlc_content_size)
+            + struct.pack("<i", dlc_element_id)
+            + struct.pack(">I", dlc_content)
+            + b"\x00\x00\x00\x00"
+        )
 
-        print(f"INSERTING {dlc.name} ...")
+        log.info(f"INSERTING {dlc.name} ...")
         ptr = self.game_setup_reader.new_dlc_insertion_ptr
         self.insert(ptr, dlc_bytes_to_insert)
-        print(f"INSERTED {dlc_bytes_to_insert} at {ptr} ({ptr:x})")
+        log.info(f"INSERTED {dlc_bytes_to_insert} at {ptr} ({ptr:x})")
 
     def update_node_block_pointers(self):
-        new_enclosing_node_block_ptr = self.game_setup_reader.get_enclosing_nodes_block_ptr() + self.added_bytes
-        new_enclosing_node_block_ptr_bytes = struct.pack("<i", new_enclosing_node_block_ptr)
-        new_attribute_node_block_ptr = self.game_setup_reader.get_attribute_nodes_block_ptr() + self.added_bytes
-        new_attribute_node_block_ptr_bytes = struct.pack("<i", new_attribute_node_block_ptr)
+        new_enclosing_node_block_ptr = (
+            self.game_setup_reader.get_enclosing_nodes_block_ptr() + self.added_bytes
+        )
+        new_enclosing_node_block_ptr_bytes = struct.pack(
+            "<i", new_enclosing_node_block_ptr
+        )
+        new_attribute_node_block_ptr = (
+            self.game_setup_reader.get_attribute_nodes_block_ptr() + self.added_bytes
+        )
+        new_attribute_node_block_ptr_bytes = struct.pack(
+            "<i", new_attribute_node_block_ptr
+        )
         self.overwrite(self.size - 16, new_enclosing_node_block_ptr_bytes)
         self.overwrite(self.size - 12, new_attribute_node_block_ptr_bytes)
 
@@ -338,28 +377,39 @@ class SaveGameWriter(Writer):
         self.insert(gamesetup_bytes_ptr, gamesetup_bytes)
 
         # self.added_bytes += len(gamesetup_bytes)
-        self._update_gamesetup_block_file_header(sys.getsizeof(gamesetup_bytes), gamesetup_bytes_ptr)
+        self._update_gamesetup_block_file_header(
+            sys.getsizeof(gamesetup_bytes), gamesetup_bytes_ptr
+        )
         self.insert(self.size, b"xda030000000001f00000")
         self._add_new_file_suffix_bytes(file_suffix_bytes)
 
-    def _update_gamesetup_block_file_header(self, gamesetup_size: int, gamesetup_bytes_ptr: int):
+    def _update_gamesetup_block_file_header(
+        self, gamesetup_size: int, gamesetup_bytes_ptr: int
+    ):
         gamesetup_size_bytes = struct.pack("<i", gamesetup_size)
-        print(f"gamesetup_file_size_ptr {self.save_game_reader.gamesetup_file_size_ptr}")
-        self.overwrite(self.save_game_reader.gamesetup_file_size_ptr, gamesetup_size_bytes)
-        print(f"gamesetup_compressed_ptr {self.save_game_reader.gamesetup_compressed_ptr}")
-        self.overwrite(self.save_game_reader.gamesetup_compressed_ptr, gamesetup_size_bytes)
+        log.debug(
+            f"gamesetup_file_size_ptr {self.save_game_reader.gamesetup_file_size_ptr}"
+        )
+        self.overwrite(
+            self.save_game_reader.gamesetup_file_size_ptr, gamesetup_size_bytes
+        )
+        log.debug(
+            f"gamesetup_compressed_ptr {self.save_game_reader.gamesetup_compressed_ptr}"
+        )
+        self.overwrite(
+            self.save_game_reader.gamesetup_compressed_ptr, gamesetup_size_bytes
+        )
         gamesetup_bytes_ptr_bytes = struct.pack("<i", gamesetup_bytes_ptr)
-        print(f"Gamesetup bytes ptr at {self.save_game_reader.gamesetup_bytes_ptr_ptr}")
-        print(f"Gamesetup bytes now at {gamesetup_bytes_ptr}")
-        self.overwrite(self.save_game_reader.gamesetup_bytes_ptr_ptr, gamesetup_bytes_ptr_bytes)
-
-        # original 55928
-        # neu 1122169
+        log.debug(f"Gamesetup bytes ptr at {self.save_game_reader.gamesetup_bytes_ptr_ptr}")
+        log.debug(f"Gamesetup bytes now at {gamesetup_bytes_ptr}")
+        self.overwrite(
+            self.save_game_reader.gamesetup_bytes_ptr_ptr, gamesetup_bytes_ptr_bytes
+        )
 
     def _add_new_file_suffix_bytes(self, file_suffix_bytes: bytes):
         self.insert(self.size, file_suffix_bytes)
 
     def write_save_game(self, filepath):
-        print(f"Writing {filepath}")
+        log.info(f"Writing {filepath}")
         with open(filepath, "w+b") as f:
             f.write(self.base_bytes)

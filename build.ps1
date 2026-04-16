@@ -1,1 +1,0 @@
-pyinstaller -i icon.ico -p . -F -n anno1800dlcactivator-alpha1 --clean .\a1800da\gui.py
