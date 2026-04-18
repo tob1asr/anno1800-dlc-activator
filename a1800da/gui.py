@@ -12,10 +12,9 @@ from a1800da.lib import DLC
 log = logging.getLogger(__name__)
 
 
-priorly_active_dlcs: List[DLC] = []
-
-
 class Gui:
+    priorly_active_dlcs: List[DLC] = []
+
     def apply_changes(self):
         dlcs_to_activate = [
             dlc for dlc in self.selected_dlcs if dlc not in self.priorly_active_dlcs
