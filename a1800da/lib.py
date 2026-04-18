@@ -400,7 +400,9 @@ class SaveGameWriter(Writer):
             self.save_game_reader.gamesetup_compressed_ptr, gamesetup_size_bytes
         )
         gamesetup_bytes_ptr_bytes = struct.pack("<i", gamesetup_bytes_ptr)
-        log.debug(f"Gamesetup bytes ptr at {self.save_game_reader.gamesetup_bytes_ptr_ptr}")
+        log.debug(
+            f"Gamesetup bytes ptr at {self.save_game_reader.gamesetup_bytes_ptr_ptr}"
+        )
         log.debug(f"Gamesetup bytes now at {gamesetup_bytes_ptr}")
         self.overwrite(
             self.save_game_reader.gamesetup_bytes_ptr_ptr, gamesetup_bytes_ptr_bytes
