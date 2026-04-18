@@ -3,7 +3,9 @@ Description of how to retroactively activate one or more Anno 1800 DLCs in a sav
 
 ## Credits
 
-Original implementation by Ole Scheller.
+[Original
+implementation](https://github.com/olescheller/anno1800-retroactive-dlc-activation) by
+Ole Scheller.
 
 ## Usage
 
