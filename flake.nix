@@ -20,6 +20,7 @@
         {
           default = pkgs.mkShell {
             packages = with pkgs; [
+              pre-commit
               python3
               python3Packages.tkinter
               uv
